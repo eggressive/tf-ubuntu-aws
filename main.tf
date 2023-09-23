@@ -36,7 +36,15 @@ resource "aws_instance" "tryubuntu_instance" {
 
   user_data = <<-EOF
               #!/bin/bash
-              hostnamectl set-hostname tryubuntu
+              set -e  # Exit on error
+              LOG_FILE="/var/log/user_data.log"
+              hostnamectl set-hostname tryubuntu >> $LOG_FILE 2>&1
+              sed -i 's/preserve_hostname: false/preserve_hostname: true/g' /etc/cloud/cloud.cfg >> $LOG_FILE 2>&1
+              echo "manage_etc_hosts: false" | tee -a /etc/cloud/cloud.cfg >> $LOG_FILE 2>&1
+              apt update -y >> $LOG_FILE 2>&1
+              apt upgrade -y >> $LOG_FILE 2>&1
+              apt install -y awscli ec2-instance-connect >> $LOG_FILE 2>&1
+              shutdown -r +1 >> $LOG_FILE 2>&1
               EOF
 
   key_name = "tryubuntu"  # Change this to your key pair name
@@ -44,4 +52,22 @@ resource "aws_instance" "tryubuntu_instance" {
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
 
   # Additional configurations can go here
+}
+
+# Output the instance hostname
+output "instance_hostname" {
+  value = aws_instance.tryubuntu_instance.tags["Name"]
+  description = "The hostname of the deployed EC2 instance."
+}
+
+# Output the instance public IP address
+output "instance_public_ip" {
+  value = aws_instance.tryubuntu_instance.public_ip
+  description = "The public IP address of the deployed EC2 instance."
+}
+
+# Output the instance private IP address
+output "instance_private_ip" {
+  value = aws_instance.tryubuntu_instance.private_ip
+  description = "The private IP address of the deployed EC2 instance."
 }
